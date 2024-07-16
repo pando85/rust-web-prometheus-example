@@ -1,6 +1,7 @@
 CARGO_TARGET_DIR ?= target
 CARGO_TARGET ?= x86_64-unknown-linux-gnu
 PKG_BASE_NAME ?= rust-web-prometheus-example-${CARGO_TARGET}
+PROJECT_VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
 
 IMAGE_NAME ?= ghcr.io/pando85/rust-web-prometheus-example
 IMAGE_VERSION ?= latest
@@ -28,6 +29,11 @@ lint:
 release:	## generate binary
 	cargo build --release --all-features --target ${CARGO_TARGET}
 	@echo Released in $(CARGO_TARGET_DIR)/$(CARGO_TARGET)/release/rust-web-prometheus-example
+
+.PHONY: tag
+tag:	## create a tag using version from Cargo.toml
+	git tag -s v$(PROJECT_VERSION)  -m "v$(PROJECT_VERSION)" && \
+	git push origin v$(PROJECT_VERSION)
 
 .PHONY: image
 image:	## build image
