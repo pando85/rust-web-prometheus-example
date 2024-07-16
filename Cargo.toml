@@ -1,22 +1,17 @@
 [package]
-name = "es-exporter-rs"
-version = "1.0.0"
-authors = ["Mario Zupan <mario@zupzup.org>"]
-edition = "2018"
+name = "rust-web-prometheus-example"
+version = "0.0.0"
+authors = ["Pando85 <pando855@gmail.com>"]
+rust-version = "1.74"
+edition = "2021"
+license-file = "../LICENSE"
 
 [dependencies]
-tokio = { version = "0.2", features = ["macros", "rt-threaded", "time"] }
-warp = "0.2"
-prometheus = { version = "0.9", features = ["process"] }
-lazy_static = "1.4"
+tokio = { version = "1.38", features = ["macros", "rt-multi-thread", "time"] }
+warp = "0.3"
+prometheus = { version = "0.13", features = ["process"] }
+lazy_static = "1"
 futures = { version = "0.3", default-features = false }
-rand = "0.7"
-
-[profile.dev]
-debug = 0
-
-[profile.test]
-debug = 0
-
-[profile.release]
-panic = 'abort'
+rand = "0.8.5"
+log = "0.4"
+env_logger = "0.9"

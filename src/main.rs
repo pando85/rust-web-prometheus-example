@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate lazy_static;
+use env_logger::Env;
 use futures::StreamExt;
+use log::{error, info};
 use prometheus::{
     HistogramOpts, HistogramVec, IntCounter, IntCounterVec, IntGauge, Opts, Registry,
 };
@@ -9,7 +11,7 @@ use std::result::Result;
 use std::time::Duration;
 use warp::{ws::WebSocket, Filter, Rejection, Reply};
 
-const ENVS: &'static [&'static str] = &["testing", "production"];
+const ENVS: &[&str] = &["testing", "production"];
 
 lazy_static! {
     pub static ref INCOMING_REQUESTS: IntCounter =
@@ -31,8 +33,11 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
     register_custom_metrics();
 
+    let index_router = warp::path::end().map(|| warp::reply::html("Well done!"));
     let metrics_route = warp::path!("metrics").and_then(metrics_handler);
     let some_route = warp::path!("some").and_then(some_handler);
     let ws_route = warp::path("ws")
@@ -42,8 +47,8 @@ async fn main() {
 
     tokio::task::spawn(data_collector());
 
-    println!("Started on port 8080");
-    warp::serve(metrics_route.or(some_route).or(ws_route))
+    info!("Server started on port 8080");
+    warp::serve(index_router.or(metrics_route).or(some_route).or(ws_route))
         .run(([0, 0, 0, 0], 8080))
         .await;
 }
@@ -76,9 +81,9 @@ async fn data_collector() {
     loop {
         collect_interval.tick().await;
         let mut rng = thread_rng();
-        let response_time: f64 = rng.gen_range(0.001, 10.0);
-        let response_code: usize = rng.gen_range(100, 599);
-        let env_index: usize = rng.gen_range(0, 2);
+        let response_time: f64 = rng.gen_range(0.001..10.0);
+        let response_code: usize = rng.gen_range(100..599);
+        let env_index: usize = rng.gen_range(0..2);
 
         track_status_code(response_code, ENVS.get(env_index).expect("exists"));
         track_request_time(response_time, ENVS.get(env_index).expect("exists"))
@@ -120,19 +125,19 @@ async fn client_connection(ws: WebSocket, id: String) {
     let (_client_ws_sender, mut client_ws_rcv) = ws.split();
 
     CONNECTED_CLIENTS.inc();
-    println!("{} connected", id);
+    info!("{} connected", id);
 
     while let Some(result) = client_ws_rcv.next().await {
         match result {
-            Ok(msg) => println!("received message: {:?}", msg),
+            Ok(msg) => info!("Received message: {:?}", msg),
             Err(e) => {
-                eprintln!("error receiving ws message for id: {}): {}", id.clone(), e);
+                error!("Error receiving ws message for id: {}: {}", id.clone(), e);
                 break;
             }
         };
     }
 
-    println!("{} disconnected", id);
+    info!("{} disconnected", id);
     CONNECTED_CLIENTS.dec();
 }
 
@@ -142,29 +147,27 @@ async fn metrics_handler() -> Result<impl Reply, Rejection> {
 
     let mut buffer = Vec::new();
     if let Err(e) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
-        eprintln!("could not encode custom metrics: {}", e);
+        error!("Could not encode custom metrics: {}", e);
     };
     let mut res = match String::from_utf8(buffer.clone()) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("custom metrics could not be from_utf8'd: {}", e);
+            error!("Custom metrics could not be from_utf8'd: {}", e);
             String::default()
         }
     };
     buffer.clear();
 
-    let mut buffer = Vec::new();
     if let Err(e) = encoder.encode(&prometheus::gather(), &mut buffer) {
-        eprintln!("could not encode prometheus metrics: {}", e);
+        error!("Could not encode prometheus metrics: {}", e);
     };
     let res_custom = match String::from_utf8(buffer.clone()) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("prometheus metrics could not be from_utf8'd: {}", e);
+            error!("Prometheus metrics could not be from_utf8'd: {}", e);
             String::default()
         }
     };
-    buffer.clear();
 
     res.push_str(&res_custom);
     Ok(res)

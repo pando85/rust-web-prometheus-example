@@ -1,35 +1,60 @@
 # rust-web-prometheus-example
 
-An example for using Prometheus Metrics in a Rust Web Service
+An example of using Prometheus metrics in a Rust web service.
 
-Build prometheus with:
+## Overview
 
-```bash
-cd prom
-docker build -t prometheus .
-```
+This project demonstrates how to create a simple web server in Rust using the `warp` and `tokio` crates, with integrated Prometheus metrics for monitoring.
 
-Run it with:
+## Getting Started
 
-```bash
-docker run -p 9090:9090 --network=host prometheus
-```
+To run the project, ensure you have Rust installed. If not, install it from [rustup.rs](https://rustup.rs/).
 
-Run service with `make dev`.
+### Build and Run
 
-Go to http://localhost:9090/graph and enter the following commands to see the quantiles of `response_time`:
+Use the commands in the `Makefile` to build and run the project.
 
 ```bash
-histogram_quantile(0.50, sum(rate(response_time_bucket{env="testing"}[2m])) by (le))
-histogram_quantile(0.90, sum(rate(response_time_bucket{env="testing"}[2m])) by (le))
-histogram_quantile(0.99, sum(rate(response_time_bucket{env="testing"}[2m])) by (le))
+# Build the project
+make build
 
+# Run the server
+make run
 ```
 
-And the rate of increase for response codes by Status Type:
+The server will start on `http://localhost:8080`.
+
+### Endpoints
+
+- `GET /` - Returns "Well done!"
+- `GET /some` - Example endpoint that increments an incoming request counter
+- `GET /metrics` - Exposes Prometheus metrics
+- `GET /ws/:id` - WebSocket endpoint for real-time connections
+
+## Logging
+
+The project uses `env_logger` for logging. Configure the log level via the `RUST_LOG` environment variable:
 
 ```bash
-sum(increase(response_code{env="testing"}[5m])) by (type)
+export RUST_LOG=info
 ```
 
-You can also call the `/some` endpoint and observer the `incoming_requests` counter, as well as connect via websockets at `/ws/some_id` and observe the `connected_clients` counter.
+## Metrics
+
+Prometheus metrics included:
+
+- `incoming_requests` - Counter for incoming requests
+- `connected_clients` - Gauge for active WebSocket connections
+- `response_code` - CounterVec for response codes
+- `response_time` - HistogramVec for response times
+
+## Dependencies
+
+- [warp](https://crates.io/crates/warp)
+- [tokio](https://crates.io/crates/tokio)
+- [prometheus](https://crates.io/crates/prometheus)
+- [lazy_static](https://crates.io/crates/lazy_static)
+- [futures](https://crates.io/crates/futures)
+- [rand](https://crates.io/crates/rand)
+- [log](https://crates.io/crates/log)
+- [env_logger](https://crates.io/crates/env_logger)
